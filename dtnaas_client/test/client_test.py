@@ -1,5 +1,5 @@
 import time
-from dtnaas.lib import Client, Session
+from dtnaas_client import Client, Session
 
 URL="http://localhost:5000"
 
