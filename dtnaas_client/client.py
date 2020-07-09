@@ -23,11 +23,11 @@ class NodeResponse(Response):
 
 class CreateResponse(Response):
     def __str__(self):
-        return self._data.json()
+        return '\n'.join([ "{}".format(*n) for n in self._data.json() ])
 
 class ActiveResponse(Response):
     def __str__(self):
-        return self._data.json()
+        return '\n'.join([ "{}".format(*n) for n in self._data.json() ])
     
 class Client(object):
     def __init__(self, url=None):
