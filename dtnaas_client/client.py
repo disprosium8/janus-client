@@ -27,7 +27,7 @@ class CreateResponse(Response):
 
 class ActiveResponse(Response):
     def __str__(self):
-        return "Active: "
+        return self._data.json()
     
 class Client(object):
     def __init__(self, url=None):
