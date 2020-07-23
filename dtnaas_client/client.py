@@ -6,6 +6,16 @@ import requests
 log = logging.getLogger(__name__)
 API_PREFIX="/api/dtnaas/controller"
 
+class SessEndpointResponse(object):
+    def __init__(self, data):
+        self._data = data
+
+    def __str__(self):
+        return '\n'.join([ "{}: {}".format(k,v) for k,v in self._data.items() ])
+
+    def json(self):
+        return self._data
+    
 class Response(object):
     def __init__(self, res):
         self._data = res
@@ -16,7 +26,7 @@ class Response(object):
         
     def json(self):
         return self._data.json()
-
+    
 class NodeResponse(Response):
     def __str__(self):
         return '\n'.join([ n['name'] for n in self._data.json() ])
@@ -75,7 +85,7 @@ class Session(object):
                                           self._allocated,
                                           self._requests,
                                           self._manifest)
-        
+
     def addInstance(self, instances, image, profile=None):
         self._requests = {"instances": instances,
                           "image": image,
@@ -89,3 +99,10 @@ class Session(object):
     def stop(self):
         for k,v in self._manifest.items():
             self._client.delete(k)
+
+    def endpoints(self):
+        eps = dict()
+        for k,v in self._manifest.items():
+            for l,w in v['services'].items():
+                eps.update({l: "{}:{}".format(w['ctrl_host'], w['ctrl_port'])})
+        return SessEndpointResponse(eps)
