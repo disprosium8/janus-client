@@ -104,5 +104,8 @@ class Session(object):
         eps = dict()
         for k,v in self._manifest.items():
             for l,w in v['services'].items():
-                eps.update({l: "{}:{}".format(w['ctrl_host'], w['ctrl_port'])})
+                if w['errors']:
+                    eps.update({l: "{}".format(w['errors'])})
+                else:
+                    eps.update({l: "{}:{}".format(w['ctrl_host'], w['ctrl_port'])})
         return SessEndpointResponse(eps)
