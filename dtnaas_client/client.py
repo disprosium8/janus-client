@@ -26,14 +26,19 @@ class Response(object):
         
     def json(self):
         return self._data.json()
+
+    def error(self):
+        if self._data.status_code > 400:
+            return True
+        else:
+            return False
     
 class NodeResponse(Response):
     def __str__(self):
         return '\n'.join([ n['name'] for n in self._data.json() ])
 
 class CreateResponse(Response):
-    def __str__(self):
-        return '\n'.join([ "{}".format(*n) for n in self._data.json() ])
+    pass
 
 class ActiveResponse(Response):
     def __str__(self):
@@ -93,7 +98,8 @@ class Session(object):
 
     def start(self):
         ret = self._client.create(self._requests)
-        self._manifest = ret.json()
+        if not ret.error():
+            self._manifest = ret.json()
         return ret
         
     def stop(self):
@@ -105,7 +111,7 @@ class Session(object):
         for k,v in self._manifest.items():
             for l,w in v['services'].items():
                 if w['errors']:
-                    eps.update({l: "{}".format(w['errors'])})
+                    eps.update({"{} (Errors)".format(l): "{}".format(w['errors'])})
                 else:
                     eps.update({l: "{}:{}".format(w['ctrl_host'], w['ctrl_port'])})
         return SessEndpointResponse(eps)
