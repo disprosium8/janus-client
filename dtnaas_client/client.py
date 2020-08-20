@@ -6,16 +6,27 @@ import requests
 log = logging.getLogger(__name__)
 API_PREFIX="/api/dtnaas/controller"
 
-class SessEndpointResponse(object):
+class SessionResponse(object):
     def __init__(self, data):
         self._data = data
 
+    def json(self):
+        return self._data
+
+class SessEndpointResponse(SessionResponse):
     def __str__(self):
         return '\n'.join([ "{}: {}".format(k,v) for k,v in self._data.items() ])
 
-    def json(self):
-        return self._data
-    
+class SessStatusResponse(SessionResponse):
+    def __str__(self):
+        ret = ""
+        for item in self._data:
+            for k,v in item.items():
+                for l,w in v['services'].items():
+                    for s in w:
+                        ret += "id: {}, service: {}, errors: {}\n".format(k, l, s['errors'])
+        return ret
+
 class Response(object):
     def __init__(self, res):
         self._data = res
@@ -95,6 +106,29 @@ class Client(object):
             return requests.delete(url, auth=auth)
         
 
+class Service(object):
+    def __init__(self, instances=None, image=None, profile=None,
+                 username=None, public_key=None, **kwargs):
+        self._instances = instances
+        self._image = image
+        self._profile = profile
+        self._username = username
+        self._public_key = public_key
+        self._kwargs = kwargs
+
+    def json(self):
+        kwargs = self._kwargs
+        if self._username:
+            kwargs["USER_NAME"] = self._username
+        if self._public_key:
+            kwargs["PUBLIC_KEY"] = self._public_key
+        ret = {"instances": self._instances,
+               "image": self._image,
+               "profile": self._profile,
+               "kwargs": kwargs}
+        return ret
+
+
 class Session(object):
     TMPL="id: {}\nallocated: {}\nrequests: {}\nmanifest: {}"
     
@@ -118,10 +152,11 @@ class Session(object):
                                           self._requests,
                                           self._manifest)
 
-    def addInstance(self, instances, image, profile=None):
-        self._requests.append({"instances": instances,
-                               "image": image,
-                               'profile': profile})
+    def addService(self, srv):
+        if type(srv) == Service:
+            self._requests.append(srv.json())
+        else:
+            raise Exception("Not a valid Service object: {}".format(srv))
 
     def start(self):
         ret = self._client.create(self._requests)
@@ -133,7 +168,7 @@ class Session(object):
         ret = list()
         for k in self._manifest.keys():
             ret.extend(self._client.active(Id=k).json())
-        return ret
+        return SessStatusResponse(ret)
 
     def stop(self):
         for k,v in self._manifest.items():

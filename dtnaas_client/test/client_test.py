@@ -3,7 +3,10 @@ from dtnaas_client import Client, Session
 
 URL="http://localhost:5000"
 
-client = Client(URL)
+user = 'admin'
+mykey = 'ssh-rsa'
+
+client = Client(URL, auth=(user, 'pass'))
 
 print (client.nodes())
 print (client.active())
@@ -14,7 +17,13 @@ sess = client.getSession()
 print (sess)
 print()
 
-sess.addInstance(['nersc-tbn-6', 'nersc-tbn-7'], 'gcsv5')
+srv = Service(instances=['odroidc2'],
+              image='dtnaas/gct:latest',
+              profile='arm64',
+              username=user,
+              public_key=mykey)
+sess.addService(srv)
+
 sess.start()
 
 print (sess)
