@@ -73,8 +73,11 @@ class Client(object):
     def config(self):
         print ("URL: ".format(self.url))
     
-    def nodes(self):
-        url = "{}{}".format(self.url, '/nodes')
+    def nodes(self, refresh=False):
+        ep = '/nodes'
+        if refresh:
+            ep = "{}{}".format(ep, "?refresh=true")
+        url = "{}{}".format(self.url, ep)
         return NodeResponse(self._call("GET", url))
 
     def create(self, req):
