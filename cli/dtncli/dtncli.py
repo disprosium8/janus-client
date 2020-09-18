@@ -14,7 +14,11 @@ import pprint
 import socket
 import requests
 from util import Util, col
-from dtnaas_client import Client, Session, Service, NodeResponse
+from ssh import get_pubkeys
+from transfer import transfer
+from dtnaas_client import Client, NodeResponse
+
+SHOW_ITEMS = ["keys", "active"]
 
 class ConfigurationError(Exception):
     def __init__(self, num, key, dir_list):
@@ -29,7 +33,8 @@ class ConfigurationError(Exception):
 class DTNCmd(cmd.Cmd):
     def __init__(self, url, user, passwd):
         self.prompt = col.PROMPT + "dtncli> " + col.ENDC
-        self.config = {}
+        self.config = {"active": dict(),
+                       "nodes": dict()}
         self.cwc = self.config
         self.cwd_list = []
         self.dtn = Client(url, auth=(user, passwd))
@@ -42,15 +47,33 @@ class DTNCmd(cmd.Cmd):
     def emptyline(self):
         pass
 
+    def do_active(self, args):
+        if len(args):
+            self.pp.pprint(self.dtn.active(args[0]).json())
+        else:
+            ret = self.dtn.active().json()
+            print ("OK")
+            self.config["active"] = ret
+        
+    def do_show(self, args):
+        if not len(args):
+            return
+        parts = args.split(" ")
+        if parts[0] == "keys":
+            print (get_pubkeys())
+    def complete_show(self, text, l, b, e):
+        return [ x[b-5:] for x in SHOW_ITEMS if x.startswith(l[5:])]
+    
     def do_transfer(self, args):
         print (args)
+        transfer(self.dtn, args)
 
     def do_sense(self, args):
         print (args)
 
     def do_dtn(self, args):
         print (args)
-        
+
     def do_cd(self, path):
         '''Change the current level of view of the config to be at <key>
         cd <key>'''
@@ -93,8 +116,8 @@ class DTNCmd(cmd.Cmd):
                 else:
                     print ("%s: %s" % (k, v))
         except:
-            import traceback
-            traceback.print_exc()
+            #import traceback
+            #traceback.print_exc()
             print ("%s" % conf)
 
     def complete_ls(self, text, l, b, e):
@@ -123,13 +146,13 @@ class DTNCmd(cmd.Cmd):
         pwd'''
         print ("/" + "/".join(self.cwd_list))
 
-    def do_endpoints(self, args):
+    def do_nodes(self, args):
         '''Get all or a specific endpoint from DTN controller
         endpoints [name]'''
         try:
             refresh = True if "refresh" in args else False
             nodes = self.dtn.nodes(refresh=refresh).json()
-            self.config = nodes
+            self.config["nodes"] = nodes
             self._set_cwc()
         except Exception as e:
             print ("Error: %s" % e)
@@ -199,9 +222,11 @@ class DTNCmd(cmd.Cmd):
             for d in cfg:
                 if "id" in d:
                     new[str(d['id'])] = d
-                else:
+                elif type(d) is dict:
                     for k, v in d.items():
                         new[str(k)] = v
+                else:
+                    new = d
             cfg = new
         return cfg
 
