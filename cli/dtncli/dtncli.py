@@ -7,12 +7,16 @@ dtncli [<url> <user> <password>]
 
 from docopt import docopt
 import re
+import sys
 import cmd
 import json
 import shlex
 import pprint
 import socket
 import requests
+import threading
+import ptyprocess
+import signal
 from util import Util, col
 from ssh import get_pubkeys
 from transfer import transfer
@@ -47,14 +51,52 @@ class DTNCmd(cmd.Cmd):
     def emptyline(self):
         pass
 
+    def do_ssh(self, args):
+        def handler(signum, frame):
+            ssh.sendintr()
+
+        def output_reader(proc):
+            while True:
+                try:
+                    s = proc.read()
+                    sys.stdout.write(s)
+                    sys.stdout.flush()
+                except EOFError:
+                    proc.close()
+                    break
+
+        ssh = ptyprocess.PtyProcessUnicode.spawn(["ssh", "localhost"], echo=False)
+        signal.signal(signal.SIGINT, handler)
+
+        t = threading.Thread(target=output_reader, args=(ssh,))
+        t.start()
+
+        while True:
+            try:
+                s = sys.stdin.read(1)
+                if s == '':
+                    ssh.sendeof()
+                if s == '\f':
+                    ssh.sendcontrol('l')
+                    continue
+                if ssh.closed:
+                    break
+                ssh.write(s)
+            except IOError:
+                break
+        t.join()
+
     def do_active(self, args):
-        if len(args):
-            self.pp.pprint(self.dtn.active(args[0]).json())
-        else:
-            ret = self.dtn.active().json()
-            print ("OK")
-            self.config["active"] = ret
-        
+        try:
+            if len(args):
+                self.pp.pprint(self.dtn.active(args[0]).json())
+            else:
+                ret = self.dtn.active().json()
+                print ("OK")
+                self.config["active"] = ret
+        except Exception as e:
+            print (f"Error: {e}")
+
     def do_show(self, args):
         if not len(args):
             return
@@ -155,9 +197,9 @@ class DTNCmd(cmd.Cmd):
             self.config["nodes"] = nodes
             self._set_cwc()
         except Exception as e:
-            print ("Error: %s" % e)
-            import traceback
-            traceback.print_exc()
+            print (f"Error: {e}")
+            #import traceback
+            #traceback.print_exc()
 
     def do_exit(self, line):
         '''Exit'''
