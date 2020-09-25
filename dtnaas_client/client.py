@@ -2,6 +2,15 @@ import json
 import uuid
 import logging
 import requests
+from enum import Enum
+
+class State(Enum):
+    INITIALIZED = 1
+    STARTED = 2
+    STOPPED = 3
+    MIXED = 4
+    CREATED = 5
+    DESTROYED = 6
 
 log = logging.getLogger(__name__)
 API_PREFIX="/api/dtnaas/controller"
@@ -50,15 +59,12 @@ class NodeResponse(Response):
             return super().__str__()
         return '\n'.join([ n['name'] for n in self.json() ])
 
-class CreateResponse(Response):
-    pass
-
 class ActiveResponse(Response):
     def __str__(self):
         if self.error():
             return super().__str__()
         return '\n'.join([ "{}".format(*n) for n in self.json() ])
-    
+
 class Client(object):
     def __init__(self, url=None, auth=None):
         self.url = "{}{}".format(url, API_PREFIX)
@@ -84,7 +90,15 @@ class Client(object):
         hdr = {"Content-type": "application/json"}
         payload = json.dumps(req)
         url = "{}{}".format(self.url, '/create')
-        return CreateResponse(self._call("POST", url, hdr, payload))
+        return Response(self._call("POST", url, hdr, payload))
+
+    def start(self, id):
+        url = "{}{}/{}".format(self.url, '/start', id)
+        return Response(self._call("PUT", url))
+
+    def stop(self, id):
+        url = "{}{}/{}".format(self.url, '/stop', id)
+        return Response(self._call("PUT", url))
 
     def delete(self, Id):
         url = "{}{}".format(self.url, '/active/{}'.format(Id))
@@ -107,6 +121,8 @@ class Client(object):
             return requests.get(url, auth=auth)
         elif op == "DELETE":
             return requests.delete(url, auth=auth)
+        elif op == "PUT":
+            return requests.put(url, auth=auth)
         
 
 class Service(object):
@@ -133,7 +149,7 @@ class Service(object):
 
 
 class Session(object):
-    TMPL="id: {}\nallocated: {}\nrequests: {}\nmanifest: {}"
+    TMPL="id: {}\nallocated: {}\nrequests: {}\nmanifest: {}\nstate: {}"
     
     def __init__(self, client, clone=None):
         self._id = uuid.uuid4()
@@ -141,6 +157,7 @@ class Session(object):
         self._allocated = False
         self._requests = list()
         self._manifest = dict()
+        self._state = State.CREATED.name
 
         if clone:
             ret = self._client.active(Id=clone).json()
@@ -153,7 +170,8 @@ class Session(object):
         return self.__class__.TMPL.format(self._id,
                                           self._allocated,
                                           self._requests,
-                                          self._manifest)
+                                          self._manifest,
+                                          self._state)
 
     def addService(self, srv):
         if type(srv) == Service:
@@ -161,10 +179,31 @@ class Session(object):
         else:
             raise Exception("Not a valid Service object: {}".format(srv))
 
-    def start(self):
+    def initialize(self):
         ret = self._client.create(self._requests)
         if not ret.error():
             self._manifest.update(ret.json())
+        else:
+            raise Exception("Error initializing service: {}".format(ret))
+        return ret
+
+    def destroy(self):
+        for k,v in self._manifest.items():
+            self._client.delete(k)
+            self._state = State.DESTROYED.name
+
+    def start(self):
+        if self._state is not State.INITIALIZED.name:
+            self.initialize()
+        ret = dict()
+        for k,v in self._manifest.items():
+            ret = self._client.start(k)
+            if not ret.error():
+                self._manifest.update(ret.json())
+            else:
+                raise Exception("Error starting service: {}".format(ret))
+            print (ret.json())
+            self._state = ret.json()[k]['state']
         return ret
 
     def status(self):
@@ -175,7 +214,10 @@ class Session(object):
 
     def stop(self):
         for k,v in self._manifest.items():
-            self._client.delete(k)
+            ret = self._client.stop(k)
+            if ret.error():
+                raise Exception("Error stopping service: {}".format(ret))
+            self._state = ret.json()[k]['state']
 
     def endpoints(self):
         eps = dict()
