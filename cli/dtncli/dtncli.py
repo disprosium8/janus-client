@@ -14,15 +14,14 @@ import shlex
 import pprint
 import socket
 import requests
-import threading
-import ptyprocess
-import signal
-from util import Util, col
-from ssh import get_pubkeys
-from transfer import transfer
-from dtnaas_client import Client, NodeResponse
+from dtnaas_client import Client, Session, Service
 
-SHOW_ITEMS = ["keys", "active"]
+from .util import Util, col
+from .ssh import get_pubkeys, handle_ssh
+from .transfer import transfer
+
+SHOW_ITEMS = ["keys"]
+SYNC_ITEMS = ["active", "nodes"]
 
 class ConfigurationError(Exception):
     def __init__(self, num, key, dir_list):
@@ -41,6 +40,7 @@ class DTNCmd(cmd.Cmd):
                        "nodes": dict()}
         self.cwc = self.config
         self.cwd_list = []
+        self.curr = None
         self.dtn = Client(url, auth=(user, passwd))
         self.util = Util()
         self.node = None
@@ -48,54 +48,47 @@ class DTNCmd(cmd.Cmd):
         self.pp = pprint.PrettyPrinter(indent=1, width=80, depth=None, stream=None)
         cmd.Cmd.__init__(self)
 
-    def emptyline(self):
-        pass
-
-    def do_ssh(self, args):
-        def handler(signum, frame):
-            ssh.sendintr()
-
-        def output_reader(proc):
-            while True:
-                try:
-                    s = proc.read()
-                    sys.stdout.write(s)
-                    sys.stdout.flush()
-                except EOFError:
-                    proc.close()
-                    break
-
-        ssh = ptyprocess.PtyProcessUnicode.spawn(["ssh", "localhost"], echo=False)
-        signal.signal(signal.SIGINT, handler)
-
-        t = threading.Thread(target=output_reader, args=(ssh,))
-        t.start()
-
-        while True:
-            try:
-                s = sys.stdin.read(1)
-                if s == '':
-                    ssh.sendeof()
-                if s == '\f':
-                    ssh.sendcontrol('l')
-                    continue
-                if ssh.closed:
-                    break
-                ssh.write(s)
-            except IOError:
-                break
-        t.join()
-
-    def do_active(self, args):
+    def _active(self, args):
         try:
             if len(args):
                 self.pp.pprint(self.dtn.active(args[0]).json())
             else:
                 ret = self.dtn.active().json()
-                print ("OK")
+                print ("active OK")
                 self.config["active"] = ret
         except Exception as e:
             print (f"Error: {e}")
+
+    def _nodes(self, args):
+        try:
+            refresh = True if "refresh" in args else False
+            nodes = self.dtn.nodes(refresh=refresh).json()
+            self.config["nodes"] = nodes
+            self._set_cwc()
+            print ("nodes OK")
+        except Exception as e:
+            print (f"Error: {e}")
+            #import traceback
+            #traceback.print_exc()
+
+    def do_sync(self, args):
+        if args.startswith("nodes"):
+            self._nodes(args)
+        elif args.startswith("active"):
+            self._active(args)
+        else:
+            self._nodes(args)
+            self._active(args)
+            self.do_cd("")
+
+    def complete_sync(self, text, l, b, e):
+        return [ x[b-5:] for x in SYNC_ITEMS if x.startswith(l[5:])]
+    
+    def emptyline(self):
+        pass
+
+    def do_ssh(self, args):
+        handle_ssh(args, self.cwc)
 
     def do_show(self, args):
         if not len(args):
@@ -103,19 +96,35 @@ class DTNCmd(cmd.Cmd):
         parts = args.split(" ")
         if parts[0] == "keys":
             print (get_pubkeys())
+
     def complete_show(self, text, l, b, e):
         return [ x[b-5:] for x in SHOW_ITEMS if x.startswith(l[5:])]
     
     def do_transfer(self, args):
-        print (args)
-        transfer(self.dtn, args)
+        transfer(self.config, self.dtn, args)
 
     def do_sense(self, args):
         print (args)
 
     def do_dtn(self, args):
-        print (args)
+        pass
 
+    def do_rm(self, key):
+        if not key:
+            print (col.FAIL + "Specify active session by number" + col.ENDC)
+            return
+        if not len(self.cwd_list) or self.cwd_list[-1] != "active":
+            print (col.FAIL + "No active sessions in current path, check /active" + col.ENDC)
+            return
+        if key not in self.cwc:
+            print (col.FAIL + f"{key} is not an active session" + col.ENDC)
+        else:
+            yn = self.util.query_yes_no(f"Really remove session {key}")
+            if yn:
+                print (f"Removing session {key}")
+                self.dtn.delete(key)
+                del self.cwc[key]
+        
     def do_cd(self, path):
         '''Change the current level of view of the config to be at <key>
         cd <key>'''
@@ -152,14 +161,17 @@ class DTNCmd(cmd.Cmd):
                 if isinstance(v, dict) or isinstance(v, list):
                     if "name" in v:
                         disp = f"{k}:\t({v['name']})"
+                    elif "request" in v:
+                        r = v['request'][0]
+                        disp = f"{k}: {v['state']}\t({r['instances']}, {r['image']})"
                     else:
                         disp = f"{k}"
                     print (col.DIR + disp + col.ENDC)
                 else:
                     print ("%s: %s" % (k, v))
         except:
-            #import traceback
-            #traceback.print_exc()
+            import traOAceback
+            traceback.print_exc()
             print ("%s" % conf)
 
     def complete_ls(self, text, l, b, e):
@@ -188,26 +200,17 @@ class DTNCmd(cmd.Cmd):
         pwd'''
         print ("/" + "/".join(self.cwd_list))
 
-    def do_nodes(self, args):
-        '''Get all or a specific endpoint from DTN controller
-        endpoints [name]'''
-        try:
-            refresh = True if "refresh" in args else False
-            nodes = self.dtn.nodes(refresh=refresh).json()
-            self.config["nodes"] = nodes
-            self._set_cwc()
-        except Exception as e:
-            print (f"Error: {e}")
-            #import traceback
-            #traceback.print_exc()
-
     def do_exit(self, line):
         '''Exit'''
         return True
     
     def do_EOF(self, line):
         '''Exit'''
-        return True
+        r = input("\nReally quit? (y/N) ")
+        if r.lower() == "y":
+            return True
+        else:
+            return False
 
     def _set_cwc(self):
         '''Set the current working configuration to what it should be
@@ -216,7 +219,6 @@ class DTNCmd(cmd.Cmd):
         '''
         try:
             self.cwc, self.cwd_list = self._conf_for_list()
-            print ("OK")
             #self.pp.pprint(self.cwc)
         except ConfigurationError:
             self.cwc = self.config
@@ -252,13 +254,11 @@ class DTNCmd(cmd.Cmd):
         return (cwc, [ x[1] for x in cwc_stack ])
 
     def _ep_to_dict(self, cfg, k):
-        if k and hasattr(cfg, "to_dict"):
-            if isinstance(cfg, DTNNode):
-                self.node = cfg
-                self.ports = cfg.get_ports()
-                self.tables = cfg.get_tables()
-            cfg = cfg.to_dict()[k]
-
+        if k and hasattr(cfg, "json"):
+            if isinstance(cfg, Service):
+                self.active = cfg
+            cfg = cfg.json()
+        
         if isinstance(cfg, list):
             new = {}
             for d in cfg:

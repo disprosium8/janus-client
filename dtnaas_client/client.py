@@ -36,6 +36,42 @@ class SessStatusResponse(SessionResponse):
                         ret += "id: {}, service: {}, errors: {}\n".format(k, l, s['errors'])
         return ret
 
+class Service(object):
+    def __init__(self, instances=None, image=None, profile=None,
+                 username=None, public_key=None, manifest=None, **kwargs):
+        self._instances = instances
+        self._image = image
+        self._profile = profile
+        self._username = username
+        self._public_key = public_key
+        self._kwargs = kwargs
+        self._manifest = manifest
+        
+    def json(self):
+        kwargs = self._kwargs
+        if self._username:
+            kwargs["USER_NAME"] = self._username
+        if self._public_key:
+            kwargs["PUBLIC_KEY"] = self._public_key
+        ret = {"instances": self._instances,
+               "image": self._image,
+               "profile": self._profile,
+               "kwargs": kwargs}
+        return ret
+
+    def endpoints(self):
+        if not self._manifest:
+            return None
+        eps = dict()
+        for k,v in self._manifest.items():
+            for l,w in v['services'].items():
+                for s in w:
+                    if s['errors']:
+                        eps.update({"{} (Errors)".format(l): "{}".format(s['errors'])})
+                    else:
+                        eps.update({l: "{}:{}".format(s['ctrl_host'], s['ctrl_port'])})
+        return SessEndpointResponse(eps)
+
 class Response(object):
     def __init__(self, res):
         self._data = res
@@ -65,6 +101,17 @@ class ActiveResponse(Response):
             return super().__str__()
         return '\n'.join([ "{}".format(*n) for n in self.json() ])
 
+    def services(self):
+        ret = dict()
+        for item in self.json():
+            for k,v in item.items():
+                if k not in ret:
+                    ret[k] = list()
+                svc = v['services']
+                for s in svc:
+                    ret[k].append(Service(manifest=v))
+        return ret
+    
 class Client(object):
     def __init__(self, url=None, auth=None):
         self.url = "{}{}".format(url, API_PREFIX)
@@ -125,33 +172,10 @@ class Client(object):
             return requests.put(url, auth=auth)
         
 
-class Service(object):
-    def __init__(self, instances=None, image=None, profile=None,
-                 username=None, public_key=None, **kwargs):
-        self._instances = instances
-        self._image = image
-        self._profile = profile
-        self._username = username
-        self._public_key = public_key
-        self._kwargs = kwargs
-
-    def json(self):
-        kwargs = self._kwargs
-        if self._username:
-            kwargs["USER_NAME"] = self._username
-        if self._public_key:
-            kwargs["PUBLIC_KEY"] = self._public_key
-        ret = {"instances": self._instances,
-               "image": self._image,
-               "profile": self._profile,
-               "kwargs": kwargs}
-        return ret
-
-
 class Session(object):
     TMPL="id: {}\nallocated: {}\nrequests: {}\nmanifest: {}\nstate: {}"
     
-    def __init__(self, client, clone=None):
+    def __init__(self, client, clone=None, json=None):
         self._id = uuid.uuid4()
         self._client = client
         self._allocated = False
@@ -165,7 +189,11 @@ class Session(object):
                 for k,v in s.items():
                     self._manifest.update(s)
                     self._requests.extend(v['request'])
-
+        if json:
+            for k,v in json.items():
+                self._manifest.update(json)
+                self._requests.extend(v['request'])
+                    
     def __str__(self):
         return self.__class__.TMPL.format(self._id,
                                           self._allocated,
