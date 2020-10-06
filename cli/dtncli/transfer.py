@@ -89,7 +89,7 @@ def transfer(cfg, client, args):
     sinfo = active['services'][src][0]
     dinfo = active['services'][dst][0]
     
-    sip = dinfo['data_ipv4']
+    sip = sinfo['data_ipv4']
     dip = dinfo['data_ipv4']
     
     # XXX: this is where we need to be smarter and optimize params based on what's known/learned
@@ -108,7 +108,7 @@ def transfer(cfg, client, args):
                                     sinfo['container_user'],
                                     scmd)
     elif typ == "gridftp":
-        cmd = "globus-url-copy -vb -p 8 sshftp://{sip}:{sinfo['ctrl_port']}/{sfile} sshftp://{dip}:{dinfo['ctrl_port']}/{dfile}"
+        cmd = f"globus-url-copy -vb -p 8 sshftp://{sinfo['ctrl_host']}:{sinfo['ctrl_port']}/{sfile} sshftp://{dinfo['ctrl_host']}:{dinfo['ctrl_port']}/{dfile}"
         spane = cmd_tmux_window(cmd)
         dpane = spane
     else:
