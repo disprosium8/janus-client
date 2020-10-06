@@ -18,9 +18,10 @@ from dtnaas_client import Client, Session, Service
 
 from .util import Util, col
 from .ssh import get_pubkeys, handle_ssh
-from .transfer import transfer
+from .transfer import transfer, MuxTransfer
+from .service import handle_service
 
-SHOW_ITEMS = ["keys"]
+SHOW_ITEMS = ["keys", "transfers"]
 SYNC_ITEMS = ["active", "nodes"]
 
 class ConfigurationError(Exception):
@@ -46,8 +47,14 @@ class DTNCmd(cmd.Cmd):
         self.node = None
         self.table = None
         self.pp = pprint.PrettyPrinter(indent=1, width=80, depth=None, stream=None)
+        self.tcount = 1
+        self.xfers = dict()
         cmd.Cmd.__init__(self)
 
+    def _cleanup(self):
+        for k,v in self.xfers.items():
+            v.stop()
+        
     def _active(self, args):
         try:
             if len(args):
@@ -87,6 +94,11 @@ class DTNCmd(cmd.Cmd):
     def emptyline(self):
         pass
 
+    def do_session(self, args):
+        ret = handle_service(self.dtn, args, self.config)
+        if ret and self.cwd_list[-1] == "active":
+            self._set_cwc()
+    
     def do_ssh(self, args):
         handle_ssh(args, self.cwc)
 
@@ -96,18 +108,41 @@ class DTNCmd(cmd.Cmd):
         parts = args.split(" ")
         if parts[0] == "keys":
             print (get_pubkeys())
+        if parts[0] == "transfers":
+            if len(parts) < 2:
+                for k,v in self.xfers.items():
+                    print (col.ITEM + f"{k}:\t({v})" + col.ENDC)
+            elif len(parts) >= 2:
+                if parts[1] == "log":
+                    if len(parts) >= 3:
+                        try:
+                            dst = False if len(parts) == 4 and parts[3] == "src" else True
+                            print (self.xfers[int(parts[2])].getlog(dst))
+                        except:
+                            #import traceback
+                            #traceback.print_exc()
+                            print (f"Transfer not found: {parts[2]}")
+                            return
+                    else:
+                        print ("No transfer specified")
+                else:
+                    try:
+                        print (parts[1], self.xfers[parts[1]])
+                    except:
+                        print (f"Transfer not found: {parts[1]}")
 
     def complete_show(self, text, l, b, e):
         return [ x[b-5:] for x in SHOW_ITEMS if x.startswith(l[5:])]
     
     def do_transfer(self, args):
-        transfer(self.config, self.dtn, args)
+        t = transfer(self.config, self.dtn, args)
+        if not t:
+            return
+        self.xfers[self.tcount] = t
+        self.tcount += 1
 
-    def do_sense(self, args):
+    def do_net(self, args):
         print (args)
-
-    def do_dtn(self, args):
-        pass
 
     def do_rm(self, key):
         if not key:
@@ -123,7 +158,10 @@ class DTNCmd(cmd.Cmd):
             if yn:
                 print (f"Removing session {key}")
                 self.dtn.delete(key)
-                del self.cwc[key]
+                res = next((a for a in self.config['active'] if next(iter(a)) == key), None)
+                if res:
+                    self.config['active'].remove(res)
+                self._set_cwc()
         
     def do_cd(self, path):
         '''Change the current level of view of the config to be at <key>
@@ -166,12 +204,14 @@ class DTNCmd(cmd.Cmd):
                         disp = f"{k}: {v['state']}\t({r['instances']}, {r['image']})"
                     else:
                         disp = f"{k}"
-                    print (col.DIR + disp + col.ENDC)
+                    print (col.ITEM + disp + col.ENDC)
+                elif not v:
+                    print (f"{k}")
                 else:
-                    print ("%s: %s" % (k, v))
+                    print (f"{k}: {v}")
         except:
-            import traOAceback
-            traceback.print_exc()
+            #import traceback
+            #traceback.print_exc()
             print ("%s" % conf)
 
     def complete_ls(self, text, l, b, e):
@@ -202,12 +242,14 @@ class DTNCmd(cmd.Cmd):
 
     def do_exit(self, line):
         '''Exit'''
+        self._cleanup()
         return True
     
     def do_EOF(self, line):
         '''Exit'''
         r = input("\nReally quit? (y/N) ")
         if r.lower() == "y":
+            self._cleanup()
             return True
         else:
             return False
@@ -248,8 +290,8 @@ class DTNCmd(cmd.Cmd):
                 cwc = self._ep_to_dict(cwc[kdir], kdir)
                 cwc_stack.append((ocwc, kdir))
             except KeyError:
-                import traceback
-                traceback.print_exc()
+                #import traceback
+                #traceback.print_exc()
                 raise ConfigurationError(num, kdir, cwd_list)
         return (cwc, [ x[1] for x in cwc_stack ])
 
@@ -268,7 +310,7 @@ class DTNCmd(cmd.Cmd):
                     for k, v in d.items():
                         new[str(k)] = v
                 else:
-                    new = d
+                    new[d] = None
             cfg = new
         return cfg
 

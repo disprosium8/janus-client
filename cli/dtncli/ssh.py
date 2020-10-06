@@ -15,7 +15,7 @@ except:
     tsess = None
     print ("SSH: Running without tmux support")
 
-SSHCMD="ssh -o StrictHostKeyChecking=no"
+SSHCMD="ssh -t -o StrictHostKeyChecking=no"
 home = str(Path.home())
 
 def get_pubkeys(path=f"{home}/.ssh"):
@@ -101,9 +101,16 @@ def handle_ssh(args, cwc):
         ssh_pty(args, cwc)
 
 def ssh_cmd_tmux_window(host, port, user, cmd):
-    print (host, port, user, cmd)
+    #print (host, port, user, cmd)
     win = tsess.new_window(attach=False)
     pane = win.attached_pane
     cmd = f"{SSHCMD} {host} -p {port} -l {user} {cmd}"
+    pane.send_keys(cmd)
+    return pane
+
+def cmd_tmux_window(cmd):
+    #print (host, port, user, cmd)
+    win = tsess.new_window(attach=False)
+    pane = win.attached_pane
     pane.send_keys(cmd)
     return pane
