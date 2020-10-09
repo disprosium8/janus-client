@@ -96,8 +96,11 @@ class DTNCmd(cmd.Cmd):
 
     def do_session(self, args):
         ret = handle_service(self.dtn, args, self.config)
-        if ret and self.cwd_list[-1] == "active":
-            self._set_cwc()
+        try:
+            if ret and self.cwd_list[-1] == "active":
+                self._set_cwc()
+        except:
+            pass
     
     def do_ssh(self, args):
         handle_ssh(args, self.cwc)

@@ -37,7 +37,7 @@ class MuxTransfer:
     def __str__(self):
         return f"{self._src} -> {self._dst} [{self._typ}]"
         
-    def getlog(self, dst=True, lines=10):
+    def getlog(self, dst=True, lines=5):
         pane = self._dpane if dst else self._spane
         ret = '\n'.join(pane.cmd('capture-pane', '-p').stdout[-lines:])
         return ret
@@ -83,7 +83,7 @@ def transfer(cfg, client, args):
         #print (sess)
         #ret = sess.start()
         #print (ret)
-        print ("not matching active found")
+        print (col.FAIL + "No suitable sessions found" + col.ENDC)
         return
 
     sinfo = active['services'][src][0]
@@ -101,14 +101,14 @@ def transfer(cfg, client, args):
                                     dinfo['container_user'],
                                     dcmd)
         
-        time.sleep(2)
+        time.sleep(3)
         
         spane = ssh_cmd_tmux_window(sinfo['ctrl_host'],
                                     sinfo['ctrl_port'],
                                     sinfo['container_user'],
                                     scmd)
     elif typ == "gridftp":
-        cmd = f"globus-url-copy -vb -p 8 sshftp://{sinfo['ctrl_host']}:{sinfo['ctrl_port']}/{sfile} sshftp://{dinfo['ctrl_host']}:{dinfo['ctrl_port']}/{dfile}"
+        cmd = f"globus-url-copy -vb -p 32 -bs 4M sshftp://{sinfo['container_user']}@{sinfo['ctrl_host']}:{sinfo['ctrl_port']}/{sfile} sshftp://{dinfo['container_user']}@{dinfo['ctrl_host']}:{dinfo['ctrl_port']}/{dfile}"
         spane = cmd_tmux_window(cmd)
         dpane = spane
     else:
