@@ -13,7 +13,7 @@ try:
     tsess = tmux.find_where({ "session_name": "dtncli" })
 except:
     tsess = None
-    print ("SSH: Running without tmux support")
+    print ("SSH\t: Running without tmux support")
 
 SSHCMD="ssh -t -o StrictHostKeyChecking=no"
 home = str(Path.home())

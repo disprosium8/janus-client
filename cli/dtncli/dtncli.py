@@ -122,8 +122,8 @@ class DTNCmd(cmd.Cmd):
                             dst = False if len(parts) == 4 and parts[3] == "src" else True
                             print (self.xfers[int(parts[2])].getlog(dst))
                         except:
-                            #import traceback
-                            #traceback.print_exc()
+                            import traceback
+                            traceback.print_exc()
                             print (f"Transfer not found: {parts[2]}")
                             return
                     else:
@@ -148,6 +148,24 @@ class DTNCmd(cmd.Cmd):
         print (args)
 
     def do_rm(self, key):
+        if key.startswith("transfer"):
+            parts = key.split(" ")
+            if len(parts) < 2:
+                print (col.FAIL + "Specify active transfer by number" + col.ENDC)
+                return
+            try:
+                xnum = int(parts[1])
+            except:
+                print (col.FAIL + "Specify active transfer by number" + col.ENDC)
+                return
+            if xnum in self.xfers:
+                print (col.WARNING + f"Removing transfer {xnum}" + col.ENDC)
+                self.xfers[xnum].stop()
+                del self.xfers[xnum]
+            else:
+                print (col.FAIL + f"Transfer not found: {xnum}" + col.ENDC)
+            return
+
         if not key:
             print (col.FAIL + "Specify active session by number" + col.ENDC)
             return
@@ -159,7 +177,7 @@ class DTNCmd(cmd.Cmd):
         else:
             yn = self.util.query_yes_no(f"Really remove session {key}")
             if yn:
-                print (f"Removing session {key}")
+                print (col.WARNING + f"Removing session {key}" + col.ENDC)
                 self.dtn.delete(key)
                 res = next((a for a in self.config['active'] if next(iter(a)) == key), None)
                 if res:
@@ -321,7 +339,7 @@ def main(args=None):
     args = docopt(__doc__, version='dtncli 0.1')
     url = args.get("<url>")
     if not url:
-        url = "http://localhost:5000"
+        url = "http://localhost:5050"
 
     user = args.get("<user>")
     if not user:
@@ -332,13 +350,24 @@ def main(args=None):
         pw = "admin"
 
     info =\
-"""Server: %s
-User  : %s
-Passwd: %s\n""" % (url, user, "*****" if pw != "admin" else pw)
+"""Server\t: %s
+User\t: %s
+Passwd\t: %s\n""" % (url, user, "*****" if pw != "admin" else pw)
     print (info)
     
     dtn = DTNCmd(url, user, pw)
-    dtn.cmdloop()
+    while True:
+        try:
+            dtn.cmdloop()
+            break
+        except KeyboardInterrupt:
+            print("Press control-c again to quit")
+            try:
+                input()
+            except KeyboardInterrupt:
+                break
+            except:
+                pass
 
 if __name__ == '__main__':
     main()

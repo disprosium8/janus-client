@@ -22,7 +22,7 @@ setup(
 
     packages=find_packages(),
 
-    install_requires=['ptyprocess', 'libtmux'],
+    install_requires=['ptyprocess', 'libtmux', 'pygments'],
 
     entry_points = {
         'console_scripts': [
