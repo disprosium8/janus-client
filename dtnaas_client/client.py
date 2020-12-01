@@ -88,12 +88,18 @@ class Response(object):
             return True
         else:
             return False
-    
+
 class NodeResponse(Response):
     def __str__(self):
         if self.error():
             return super().__str__()
         return '\n'.join([ n['name'] for n in self.json() ])
+
+class ProfileResponse(Response):
+    def __str__(self):
+        if self.error():
+            return super().__str__()
+        return '\n'.join([ n for n in self.json() ])
 
 class ActiveResponse(Response):
     def __str__(self):
@@ -125,7 +131,12 @@ class Client(object):
 
     def config(self):
         print ("URL: ".format(self.url))
-    
+
+    def profiles(self):
+        ep = '/profiles'
+        url = "{}{}".format(self.url, ep)
+        return ProfileResponse(self._call("GET", url))
+
     def nodes(self, refresh=False):
         ep = '/nodes'
         if refresh:

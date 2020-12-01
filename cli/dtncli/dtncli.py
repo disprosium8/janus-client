@@ -54,7 +54,15 @@ class DTNCmd(cmd.Cmd):
     def _cleanup(self):
         for k,v in self.xfers.items():
             v.stop()
-        
+
+    def _profiles(self, args):
+        try:
+            ret = self.dtn.profiles().json()
+            print ("profiles OK")
+            self.config["profiles"] = ret
+        except Exception as e:
+            print (f"Error: {e}")
+
     def _active(self, args):
         try:
             if len(args):
@@ -83,9 +91,12 @@ class DTNCmd(cmd.Cmd):
             self._nodes(args)
         elif args.startswith("active"):
             self._active(args)
+        elif args.startswith("profiles"):
+            self._profiles(args)
         else:
             self._nodes(args)
             self._active(args)
+            self._profiles(args)
             self.do_cd("")
 
     def complete_sync(self, text, l, b, e):
@@ -222,7 +233,8 @@ class DTNCmd(cmd.Cmd):
                         disp = f"{k}:\t({v['name']})"
                     elif "request" in v:
                         r = v['request'][0]
-                        disp = f"{k}: {v['state']}\t({r['instances']}, {r['image']})"
+                        inst = ','.join(map(str, r['instances']))
+                        disp = f"{k}: {v['state']: <12}|{inst: <25} | {r['image']: <30} | {r['profile']}"
                     else:
                         disp = f"{k}"
                     print (col.ITEM + disp + col.ENDC)
