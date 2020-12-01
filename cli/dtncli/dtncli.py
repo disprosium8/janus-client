@@ -217,7 +217,6 @@ class DTNCmd(cmd.Cmd):
         '''Show the top level of the current working config, or top level of config under [key]
         ls [key]'''
         conf = self.cwc
-        scol = col.ITEM
         if key:
             try:
                 conf = conf[key]
@@ -229,6 +228,7 @@ class DTNCmd(cmd.Cmd):
 
         try:
             for k,v in conf.items():
+                scol = col.ITEM
                 if isinstance(v, dict) or isinstance(v, list):
                     if "name" in v:
                         disp = f"{k}:\t({v['name']})"
