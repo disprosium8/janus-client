@@ -217,6 +217,7 @@ class DTNCmd(cmd.Cmd):
         '''Show the top level of the current working config, or top level of config under [key]
         ls [key]'''
         conf = self.cwc
+        scol = col.ITEM
         if key:
             try:
                 conf = conf[key]
@@ -234,10 +235,20 @@ class DTNCmd(cmd.Cmd):
                     elif "request" in v:
                         r = v['request'][0]
                         inst = ','.join(map(str, r['instances']))
-                        disp = f"{k}: {v['state']: <12}|{inst: <25} | {r['image']: <30} | {r['profile']}"
+                        err = False
+                        for s,sv in v['services'].items():
+                            for svc in sv:
+                                if svc['errors']:
+                                    err = True
+                        if err:
+                            scol = col.FAIL
+                            state = f"{v['state']} (ERR)"
+                        else:
+                            state = f"{v['state']}"
+                        disp = f"{k}: {state: <20}| {inst: <25} | {r['image']: <30} | {r['profile']}"
                     else:
                         disp = f"{k}"
-                    print (col.ITEM + disp + col.ENDC)
+                    print (scol + disp + col.ENDC)
                 elif not v:
                     print (f"{k}")
                 else:
