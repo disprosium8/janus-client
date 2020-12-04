@@ -74,7 +74,9 @@ def ssh_tmux(args, cwc):
     def tpane(cmd):
         window = tsess.attached_window
         pane = window.split_window(attach=False)
+        window.select_layout("even-vertical")
         pane.send_keys(cmd)
+        pane.clear()
     
     if (args):
         try:
