@@ -57,9 +57,15 @@ class DTNCmd(cmd.Cmd):
 
     def _profiles(self, args):
         try:
-            ret = self.dtn.profiles().json()
-            print ("profiles OK")
-            self.config["profiles"] = ret
+            refresh = True if "refresh" in args else False
+            ret = self.dtn.profiles(refresh=refresh)
+            if ret.error():
+                print (col.FAIL + str(ret) + col.ENDC)
+                return
+            else:
+                self.config["profiles"] = ret.json()
+                self._set_cwc()
+                print ("profiles OK")
         except Exception as e:
             print (f"Error: {e}")
 
@@ -69,18 +75,22 @@ class DTNCmd(cmd.Cmd):
                 self.pp.pprint(self.dtn.active(args[0]).json())
             else:
                 ret = self.dtn.active().json()
-                print ("active OK")
                 self.config["active"] = ret
+                print ("active OK")
         except Exception as e:
             print (f"Error: {e}")
 
     def _nodes(self, args):
         try:
             refresh = True if "refresh" in args else False
-            nodes = self.dtn.nodes(refresh=refresh).json()
-            self.config["nodes"] = nodes
-            self._set_cwc()
-            print ("nodes OK")
+            ret = self.dtn.nodes(refresh=refresh)
+            if ret.error():
+                print (col.FAIL + str(ret) + col.ENDC)
+                return
+            else:
+                self.config["nodes"] = ret.json()
+                self._set_cwc()
+                print ("nodes OK")
         except Exception as e:
             print (f"Error: {e}")
             #import traceback

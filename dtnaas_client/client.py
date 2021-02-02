@@ -132,8 +132,10 @@ class Client(object):
     def config(self):
         print ("URL: ".format(self.url))
 
-    def profiles(self):
+    def profiles(self, refresh=False):
         ep = '/profiles'
+        if refresh:
+            ep = "{}{}".format(ep, "?refresh=true")
         url = "{}{}".format(self.url, ep)
         return ProfileResponse(self._call("GET", url))
 
