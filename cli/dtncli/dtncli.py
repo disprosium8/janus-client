@@ -237,6 +237,7 @@ class DTNCmd(cmd.Cmd):
             return
 
         try:
+            print (col.HEADER + f"{'ID': <3}: {'Status': <20}| {'Nodes/Services': <25} | {'Image': <30} | Profile" + col.ENDC)
             for k,v in conf.items():
                 scol = col.ITEM
                 if isinstance(v, dict) or isinstance(v, list):
@@ -255,7 +256,14 @@ class DTNCmd(cmd.Cmd):
                             state = f"{v['state']} (ERR)"
                         else:
                             state = f"{v['state']}"
-                        disp = f"{k}: {state: <20}| {inst: <25} | {r['image']: <30} | {r['profile']}"
+                        cport = ''
+                        if len(r['instances']) == 1:
+                            try:
+                                cport = v['services'][r['instances'][0]][0]['ctrl_port']
+                            except:
+                                pass
+                        inst = f"{inst} [{cport}]"
+                        disp = f"{k: <3}: {state: <20}| {inst: <25} | {r['image']: <30} | {r['profile']}"
                     else:
                         disp = f"{k}"
                     print (scol + disp + col.ENDC)

@@ -29,6 +29,8 @@ def get_pubkeys(path=f"{home}/.ssh"):
     return ret
 
 def ssh_pty(args, cwc):
+    user = None
+
     def handler(signum, frame):
         ssh.sendintr()
 
@@ -45,10 +47,15 @@ def ssh_pty(args, cwc):
     if not 'ctrl_port' in cwc or not 'ctrl_host' in cwc:
         print (col.FAIL + "No host or port information on this path" + col.ENDC)
         return
+
+    parts = args.split(" ")
+    if len(parts) > 1 and parts[0] == "-l":
+        user = parts[1]
+    sshuser = user if user else cwc['container_user']
     ssh = ptyprocess.PtyProcessUnicode.spawn(["ssh", "-o", "StrictHostKeyChecking=no",
                                               cwc['ctrl_host'],
                                               "-p", cwc['ctrl_port'],
-                                              "-l", cwc['container_user']], echo=False)
+                                              "-l", sshuser], echo=False)
     signal.signal(signal.SIGINT, handler)
     
     t = threading.Thread(target=output_reader, args=(ssh,))
@@ -70,20 +77,26 @@ def ssh_pty(args, cwc):
     t.join()
 
 def ssh_tmux(args, cwc):
+    user = None
 
     def tpane(cmd):
         window = tsess.attached_window
         pane = window.split_window(attach=False)
         window.select_layout("even-vertical")
-        pane.send_keys(cmd)
         pane.clear()
-    
+        pane.send_keys(cmd)
+
     if (args):
+        parts = args.split(" ")
+        sid = parts[0]
+        if len(parts) > 2 and parts[1] == "-l":
+            user = parts[2]
         try:
-            res = cwc[args]
+            res = cwc[sid]
             for k,v in res['services'].items():
                 for s in v:
-                    cmd = f"{SSHCMD} {s['ctrl_host']} -p {s['ctrl_port']} -l {s['container_user']}"
+                    sshuser = user if user else s['container_user']
+                    cmd = f"{SSHCMD} {s['ctrl_host']} -p {s['ctrl_port']} -l {sshuser}"
                     tpane(cmd)
         except:
             print (col.FAIL + f"No active Session \"{args}\"" + col.ENDC)
@@ -93,7 +106,8 @@ def ssh_tmux(args, cwc):
         print (col.FAIL + "No host or port information on this path" + col.ENDC)
         return
 
-    cmd = f"{SSHCMD} {cwc['ctrl_host']} -p {cwc['ctrl_port']} -l {cwc['container_user']}"
+    sshuser = user if user else cwc['container_user']
+    cmd = f"{SSHCMD} {cwc['ctrl_host']} -p {cwc['ctrl_port']} -l {sshuser}"
     tpane(cmd)
 
 def handle_ssh(args, cwc):

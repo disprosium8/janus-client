@@ -122,7 +122,7 @@ def _rdma_xfer(sinfo, dinfo, src, dst, sfile, dfile, typ):
                                 scmd)
     return MuxTransfer(spane, dpane, src, dst, typ)
 
-def _griftp_xfer(sinfo, dinfo, src, dst, sfile, dfile, typ):
+def _gridftp_xfer(sinfo, dinfo, src, dst, sfile, dfile, typ):
     cmd = f"globus-url-copy -vb -p 32 -bs 4M sshftp://{sinfo['container_user']}@{sinfo['ctrl_host']}:{sinfo['ctrl_port']}/{sfile} sshftp://{dinfo['container_user']}@{dinfo['ctrl_host']}:{dinfo['ctrl_port']}/{dfile}"
     spane = cmd_tmux_window(cmd)
     dpane = spane

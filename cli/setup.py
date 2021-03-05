@@ -22,7 +22,7 @@ setup(
 
     packages=find_packages(),
 
-    install_requires=['ptyprocess', 'libtmux', 'pygments'],
+    install_requires=['ptyprocess', 'libtmux', 'pygments', 'docopt'],
 
     entry_points = {
         'console_scripts': [
