@@ -237,7 +237,9 @@ class DTNCmd(cmd.Cmd):
             return
 
         try:
-            print (col.HEADER + f"{'ID': <3}: {'Status': <20}| {'Nodes/Services': <25} | {'Image': <30} | Profile" + col.ENDC)
+            # print a nice header for the active session list
+            if len(self.cwd_list) and self.cwd_list[-1] == "active":
+                print (col.HEADER + f"{'ID': <3}: {'Status': <20}| {'Nodes/Services': <25} | {'Image': <30} | Profile" + col.ENDC)
             for k,v in conf.items():
                 scol = col.ITEM
                 if isinstance(v, dict) or isinstance(v, list):
