@@ -39,7 +39,7 @@ class ConfigurationError(Exception):
 class JanusCmd(cmd.Cmd):
     def __init__(self, url, user, passwd):
         self.prompt = col.PROMPT + "janus> " + col.ENDC
-        self.config = {"active": dict(),
+        self.config = {"active": list(),
                        "nodes": dict()}
         self.cwc = self.config
         self.cwd_list = []
