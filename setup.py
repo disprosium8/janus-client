@@ -1,10 +1,10 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='DTNaaS Client',
+    name='Janus Client',
     version='0.1',
-    description='ESnet DTN as-a-Service Client',
-    url='https://github.com/disprosium8/dtnaas-client',
+    description='ESnet Janus Client',
+    url='https://github.com/disprosium8/janus-client',
     author='Ezra Kissel',
 
     classifiers=[

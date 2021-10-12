@@ -4,6 +4,7 @@ import logging
 import requests
 from enum import Enum
 
+
 class State(Enum):
     INITIALIZED = 1
     STARTED = 2
@@ -13,7 +14,7 @@ class State(Enum):
     DESTROYED = 6
 
 log = logging.getLogger(__name__)
-API_PREFIX="/api/dtnaas/controller"
+API_PREFIX="/api/janus/controller"
 
 class SessionResponse(object):
     def __init__(self, data):
@@ -119,9 +120,13 @@ class ActiveResponse(Response):
         return ret
     
 class Client(object):
-    def __init__(self, url=None, auth=None):
+    def __init__(self, url=None, auth=None, verify=False):
         self.url = "{}{}".format(url, API_PREFIX)
         self.auth = auth
+        self.verify = verify
+        if not self.verify:
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     def setURL(self, url):
         self.url = url
@@ -176,14 +181,14 @@ class Client(object):
         if not auth:
             auth = self.auth
         if op == "POST":
-            return requests.post(url, headers=hdrs, data=data, auth=auth)
+            return requests.post(url, headers=hdrs, data=data,
+                                 auth=auth, verify=self.verify)
         elif op == "GET":
-            return requests.get(url, auth=auth)
+            return requests.get(url, auth=auth, verify=self.verify)
         elif op == "DELETE":
-            return requests.delete(url, auth=auth)
+            return requests.delete(url, auth=auth, verify=self.verify)
         elif op == "PUT":
-            return requests.put(url, auth=auth)
-        
+            return requests.put(url, auth=auth, verify=self.verify)
 
 class Session(object):
     TMPL="id: {}\nallocated: {}\nrequests: {}\nmanifest: {}\nstate: {}"

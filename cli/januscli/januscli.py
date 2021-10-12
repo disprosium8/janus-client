@@ -2,7 +2,7 @@
 
 '''
 Usage:
-dtncli [<url> <user> <password>]
+janus [<url> <user> <password>]
 '''
 
 from docopt import docopt
@@ -13,16 +13,18 @@ import json
 import shlex
 import pprint
 import socket
-import requests
-from dtnaas_client import Client, Session, Service
+from janus_client import Client, Session, Service
 
-from .util import Util, col
+from .util import Util, col, CText
 from .ssh import get_pubkeys, handle_ssh
 from .transfer import transfer, MuxTransfer
 from .service import handle_service
 
+
 SHOW_ITEMS = ["keys", "transfers"]
 SYNC_ITEMS = ["active", "nodes"]
+
+cout = CText()
 
 class ConfigurationError(Exception):
     def __init__(self, num, key, dir_list):
@@ -34,9 +36,9 @@ class ConfigurationError(Exception):
         return "No such path through config at pos: %d %s in %s" %\
             (self.num, self.key, self.dir)
 
-class DTNCmd(cmd.Cmd):
+class JanusCmd(cmd.Cmd):
     def __init__(self, url, user, passwd):
-        self.prompt = col.PROMPT + "dtncli> " + col.ENDC
+        self.prompt = col.PROMPT + "janus> " + col.ENDC
         self.config = {"active": dict(),
                        "nodes": dict()}
         self.cwc = self.config
@@ -60,14 +62,14 @@ class DTNCmd(cmd.Cmd):
             refresh = True if "refresh" in args else False
             ret = self.dtn.profiles(refresh=refresh)
             if ret.error():
-                print (col.FAIL + str(ret) + col.ENDC)
+                cout.error(str(ret))
                 return
             else:
                 self.config["profiles"] = ret.json()
                 self._set_cwc()
-                print ("profiles OK")
+                cout.info("profiles OK")
         except Exception as e:
-            print (f"Error: {e}")
+            cout.error(f"Error: {e}")
 
     def _active(self, args):
         try:
@@ -76,23 +78,23 @@ class DTNCmd(cmd.Cmd):
             else:
                 ret = self.dtn.active().json()
                 self.config["active"] = ret
-                print ("active OK")
+                cout.info("active OK")
         except Exception as e:
-            print (f"Error: {e}")
+            cout.error(f"Error: {e}")
 
     def _nodes(self, args):
         try:
             refresh = True if "refresh" in args else False
             ret = self.dtn.nodes(refresh=refresh)
             if ret.error():
-                print (col.FAIL + str(ret) + col.ENDC)
+                cout.error(str(ret))
                 return
             else:
                 self.config["nodes"] = ret.json()
                 self._set_cwc()
-                print ("nodes OK")
+                cout.info("nodes OK")
         except Exception as e:
-            print (f"Error: {e}")
+            cout.error(f"Error: {e}")
             #import traceback
             #traceback.print_exc()
 
@@ -131,29 +133,29 @@ class DTNCmd(cmd.Cmd):
             return
         parts = args.split(" ")
         if parts[0] == "keys":
-            print (get_pubkeys())
+            cout.info(get_pubkeys())
         if parts[0] == "transfers":
             if len(parts) < 2:
                 for k,v in self.xfers.items():
-                    print (col.ITEM + f"{k}:\t({v})" + col.ENDC)
+                    cout.item(f"{k}:\t({v})")
             elif len(parts) >= 2:
                 if parts[1] == "log":
                     if len(parts) >= 3:
                         try:
                             dst = False if len(parts) == 4 and parts[3] == "src" else True
-                            print (self.xfers[int(parts[2])].getlog(dst))
+                            cout.info(self.xfers[int(parts[2])].getlog(dst))
                         except:
                             import traceback
                             traceback.print_exc()
-                            print (f"Transfer not found: {parts[2]}")
+                            cout.info(f"Transfer not found: {parts[2]}")
                             return
                     else:
-                        print ("No transfer specified")
+                        cout.info("No transfer specified")
                 else:
                     try:
-                        print (parts[1], self.xfers[parts[1]])
+                        cout.info(parts[1], self.xfers[parts[1]])
                     except:
-                        print (f"Transfer not found: {parts[1]}")
+                        cout.info(f"Transfer not found: {parts[1]}")
 
     def complete_show(self, text, l, b, e):
         return [ x[b-5:] for x in SHOW_ITEMS if x.startswith(l[5:])]
@@ -166,39 +168,39 @@ class DTNCmd(cmd.Cmd):
         self.tcount += 1
 
     def do_net(self, args):
-        print (args)
+        cout.info(args)
 
     def do_rm(self, key):
         if key.startswith("transfer"):
             parts = key.split(" ")
             if len(parts) < 2:
-                print (col.FAIL + "Specify active transfer by number" + col.ENDC)
+                cout.error("Specify active transfer by number")
                 return
             try:
                 xnum = int(parts[1])
             except:
-                print (col.FAIL + "Specify active transfer by number" + col.ENDC)
+                cout.error("Specify active transfer by number")
                 return
             if xnum in self.xfers:
-                print (col.WARNING + f"Removing transfer {xnum}" + col.ENDC)
+                cout.warn(f"Removing transfer {xnum}")
                 self.xfers[xnum].stop()
                 del self.xfers[xnum]
             else:
-                print (col.FAIL + f"Transfer not found: {xnum}" + col.ENDC)
+                cout.error(f"Transfer not found: {xnum}")
             return
 
         if not key:
-            print (col.FAIL + "Specify active session by number" + col.ENDC)
+            cout.error("Specify active session by number")
             return
         if not len(self.cwd_list) or self.cwd_list[-1] != "active":
-            print (col.FAIL + "No active sessions in current path, check /active" + col.ENDC)
+            cout.error("No active sessions in current path, check /active")
             return
         if key not in self.cwc:
-            print (col.FAIL + f"{key} is not an active session" + col.ENDC)
+            cout.error(f"{key} is not an active session")
         else:
             yn = self.util.query_yes_no(f"Really remove session {key}")
             if yn:
-                print (col.WARNING + f"Removing session {key}" + col.ENDC)
+                cout.warn(f"Removing session {key}")
                 self.dtn.delete(key)
                 res = next((a for a in self.config['active'] if next(iter(a)) == key), None)
                 if res:
@@ -215,7 +217,7 @@ class DTNCmd(cmd.Cmd):
         try:
             cwc, new_wd_list = self._conf_for_list(new_wd_list)
         except ConfigurationError as e:
-            print (col.FAIL + str(e) + col.ENDC)
+            cout.error(str(e))
             return
         self.cwd_list = new_wd_list
         self.cwc = cwc
@@ -231,7 +233,7 @@ class DTNCmd(cmd.Cmd):
             try:
                 conf = conf[key]
             except KeyError:
-                print ("No such key %s" % key)
+                cout.error("No such key %s" % key)
                 return
             self.pp.pprint(conf)
             return
@@ -239,7 +241,7 @@ class DTNCmd(cmd.Cmd):
         try:
             # print a nice header for the active session list
             if len(self.cwd_list) and self.cwd_list[-1] == "active":
-                print (col.HEADER + f"{'ID': <3}: {'Status': <20}| {'Nodes/Services': <25} | {'Image': <30} | Profile" + col.ENDC)
+                cout.header(f"{'ID': <3}: {'Status': <20}| {'Nodes/Services': <25} | {'Image': <30} | Profile")
             for k,v in conf.items():
                 scol = col.ITEM
                 if isinstance(v, dict) or isinstance(v, list):
@@ -268,7 +270,7 @@ class DTNCmd(cmd.Cmd):
                         disp = f"{k: <3}: {state: <20}| {inst: <25} | {r['image']: <30} | {r['profile']}"
                     else:
                         disp = f"{k}"
-                    print (scol + disp + col.ENDC)
+                    cout._color(scol, disp)
                 elif not v:
                     print (f"{k}")
                 else:
@@ -276,7 +278,7 @@ class DTNCmd(cmd.Cmd):
         except:
             #import traceback
             #traceback.print_exc()
-            print ("%s" % conf)
+            cout.info("%s" % conf)
 
     def complete_ls(self, text, l, b, e):
         return [ x[b-3:] for x,y in self.cwc.items() if x.startswith(l[3:]) ]
@@ -292,7 +294,7 @@ class DTNCmd(cmd.Cmd):
             try:
                 conf = next((sub for sub in conf if sub['name'] == key), None) 
             except KeyError:
-                print ("No such key %s" % key)
+                cout.info("No such key %s" % key)
         self.pp.pprint(conf)
 
     def complete_lsd(self, text, l, b, e):
@@ -302,7 +304,7 @@ class DTNCmd(cmd.Cmd):
     def do_pwd(self, key):
         '''Show current path in config separated by slashes
         pwd'''
-        print ("/" + "/".join(self.cwd_list))
+        cout.info("/" + "/".join(self.cwd_list))
 
     def do_exit(self, line):
         '''Exit'''
@@ -379,7 +381,7 @@ class DTNCmd(cmd.Cmd):
         return cfg
 
 def main(args=None):
-    args = docopt(__doc__, version='dtncli 0.1')
+    args = docopt(__doc__, version='janus cli 0.1')
     url = args.get("<url>")
     if not url:
         url = "http://localhost:5050"
@@ -396,15 +398,15 @@ def main(args=None):
 """Server\t: %s
 User\t: %s
 Passwd\t: %s\n""" % (url, user, "*****" if pw != "admin" else pw)
-    print (info)
+    cout.info(info)
     
-    dtn = DTNCmd(url, user, pw)
+    jan = JanusCmd(url, user, pw)
     while True:
         try:
-            dtn.cmdloop()
+            jan.cmdloop()
             break
         except KeyboardInterrupt:
-            print("Press control-c again to quit")
+            cout.warn("Press control-c again to quit")
             try:
                 input()
             except KeyboardInterrupt:

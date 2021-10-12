@@ -3,7 +3,7 @@ import time
 import json
 import subprocess
 from subprocess import PIPE, STDOUT
-from dtnaas_client import Session, Service, NodeResponse
+from janus_client import Session, Service, NodeResponse
 from .ssh import ssh_cmd_tmux_window, cmd_tmux_window
 from .util import col
 from pygments import highlight, lexers, formatters

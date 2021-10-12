@@ -1,5 +1,5 @@
 import time
-from dtnaas_client import Session, Service, NodeResponse
+from janus_client import Session, Service, NodeResponse
 from .util import col
 from .ssh import get_pubkeys
 
@@ -25,7 +25,7 @@ def handle_service(client, args, cfg):
             srv = Service(instances=instances,
                           image=image,
                           profile=profile,
-                          username='dtnaas',
+                          username='janus',
                           public_key=get_pubkeys())
             sess.addService(srv)
             ret = sess.initialize()

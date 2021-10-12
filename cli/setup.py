@@ -1,10 +1,10 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='DTNCLI',
+    name='JanusCLI',
     version='0.1',
-    description='ESnet DTN as-a-Service Client CLI',
-    url='https://github.com/disprosium8/dtnaas-client',
+    description='ESnet Janus Client CLI',
+    url='https://github.com/disprosium8/janus-client',
     author='Ezra Kissel',
 
     classifiers=[
@@ -26,7 +26,7 @@ setup(
 
     entry_points = {
         'console_scripts': [
-            'dtncli = dtncli.dtncli:main',
+            'janus = januscli.januscli:main',
         ]
     }
 )
