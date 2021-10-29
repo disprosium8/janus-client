@@ -241,7 +241,7 @@ class JanusCmd(cmd.Cmd):
         try:
             # print a nice header for the active session list
             if len(self.cwd_list) and self.cwd_list[-1] == "active":
-                cout.header(f"{'ID': <3}: {'Status': <20}| {'Nodes/Services': <25} | {'Image': <30} | Profile")
+                cout.header(f"{'ID': <3}: {'Status': <20}| {'Nodes/Services': <25} | {'Image': <40} | Profile")
             for k,v in conf.items():
                 scol = col.ITEM
                 if isinstance(v, dict) or isinstance(v, list):
@@ -267,7 +267,7 @@ class JanusCmd(cmd.Cmd):
                             except:
                                 pass
                         inst = f"{inst} [{cport}]"
-                        disp = f"{k: <3}: {state: <20}| {inst: <25} | {r['image']: <30} | {r['profile']}"
+                        disp = f"{k: <3}: {state: <20}| {inst: <25} | {r['image']: <40} | {r['profile']}"
                     else:
                         disp = f"{k}"
                     cout._color(scol, disp)
