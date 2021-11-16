@@ -74,11 +74,11 @@ class JanusCmd(cmd.Cmd):
     def _active(self, args):
         try:
             if len(args):
-                self.pp.pprint(self.dtn.active(args[0]).json())
+                self.dtn.active(args[0]).json()
             else:
                 ret = self.dtn.active().json()
                 self.config["active"] = ret
-                cout.info("active OK")
+            cout.info("active OK")
         except Exception as e:
             cout.error(f"Error: {e}")
 
@@ -241,33 +241,35 @@ class JanusCmd(cmd.Cmd):
         try:
             # print a nice header for the active session list
             if len(self.cwd_list) and self.cwd_list[-1] == "active":
-                cout.header(f"{'ID': <3}: {'Status': <20}| {'Nodes/Services': <25} | {'Image': <40} | Profile")
+                cout.header(f"{'ID': <3}: {'Status': <20}| {'Nodes/Services': <45} | {'Image': <40} | Profile")
             for k,v in conf.items():
                 scol = col.ITEM
                 if isinstance(v, dict) or isinstance(v, list):
                     if "name" in v:
                         disp = f"{k}:\t({v['name']})"
                     elif "request" in v:
-                        r = v['request'][0]
-                        inst = ','.join(map(str, r['instances']))
+                        servcs = list()
+                        cports = list()
+                        profiles = set()
+                        images = set()
                         err = False
                         for s,sv in v['services'].items():
                             for svc in sv:
                                 if svc['errors']:
                                     err = True
+                                cports.append(svc.get('ctrl_port', 'N/A'))
+                                servcs.append(s)
+                                profiles.add(svc.get('profile', 'N/A'))
+                                images.add(svc.get('image', 'N/A'))
                         if err:
                             scol = col.FAIL
                             state = f"{v['state']} (ERR)"
                         else:
                             state = f"{v['state']}"
-                        cport = ''
-                        if len(r['instances']) == 1:
-                            try:
-                                cport = v['services'][r['instances'][0]][0]['ctrl_port']
-                            except:
-                                pass
-                        inst = f"{inst} [{cport}]"
-                        disp = f"{k: <3}: {state: <20}| {inst: <25} | {r['image']: <40} | {r['profile']}"
+                        profs = ','.join(profiles)
+                        imgs = ','.join(images)
+                        inst = ','.join(list(map(lambda x,y: f"{x} [{y}]", servcs, cports)))
+                        disp = f"{k: <3}: {state: <20}| {inst: <45} | {imgs: <40} | {profs}"
                     else:
                         disp = f"{k}"
                     cout._color(scol, disp)
@@ -276,8 +278,8 @@ class JanusCmd(cmd.Cmd):
                 else:
                     print (f"{k}: {v}")
         except:
-            #import traceback
-            #traceback.print_exc()
+            import traceback
+            traceback.print_exc()
             cout.info("%s" % conf)
 
     def complete_ls(self, text, l, b, e):

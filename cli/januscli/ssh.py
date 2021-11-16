@@ -10,7 +10,7 @@ from .util import Util, col
 
 try:
     tmux= libtmux.Server()
-    tsess = tmux.find_where({ "session_name": "dtncli" })
+    tsess = tmux.find_where({ "session_name": "janus" })
 except:
     tsess = None
     print ("SSH\t: Running without tmux support")

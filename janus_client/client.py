@@ -90,6 +90,9 @@ class Response(object):
         else:
             return False
 
+class StartResponse(Response):
+    pass
+
 class NodeResponse(Response):
     def __str__(self):
         if self.error():
@@ -118,7 +121,7 @@ class ActiveResponse(Response):
                 for s in svc:
                     ret[k].append(Service(manifest=v))
         return ret
-    
+
 class Client(object):
     def __init__(self, url=None, auth=None, verify=False):
         self.url = "{}{}".format(url, API_PREFIX)
@@ -248,7 +251,6 @@ class Session(object):
                 self._manifest.update(ret.json())
             else:
                 raise Exception("Error starting service: {}".format(ret))
-            print (ret.json())
             self._state = ret.json()[k]['state']
         return ret
 
