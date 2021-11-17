@@ -15,7 +15,7 @@ except:
     tsess = None
     print ("SSH\t: Running without tmux support")
 
-SSHCMD="ssh -t -o StrictHostKeyChecking=no"
+SSHCMD="ssh -t -o StrictHostKeyChecking=no -q"
 home = str(Path.home())
 
 def get_pubkeys(path=f"{home}/.ssh"):
