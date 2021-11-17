@@ -111,27 +111,27 @@ def setup(sess):
                     continue
                     
 def run_job(sess):
-    sess.stop = False
+    sess.tstop = False
     out = widgets.Output()
     display(out)
     out.append_stdout(f"Running workflow on {sess.src} and {sess.dst}")
     if sess.image.startswith("dtnaas/ofed"):
         dst_cmd = f"ping -c 2 {sess.src_gw}; xfer_test -s -r -d 128"
-        dst_thr = threading.Thread(target=run_host_cmd, args=(sess.dst, dst_cmd, None, lambda: sess.stop))
-        src_cmd = f"ping -c 2 {sess.dst_gw}; stdbuf -oL xfer_test -c {sess.dst_ip} -t 12000 -i 5 -r -a 1 -o 24 -d 112"
-        src_thr = threading.Thread(target=run_host_cmd, args=(sess.src, src_cmd, None, lambda: sess.stop, True, out))
+        dst_thr = threading.Thread(target=run_host_cmd, args=(sess.dst, dst_cmd, None, lambda: sess.tstop))
+        src_cmd = f"ping -c 2 {sess.dst_gw}; stdbuf -oL xfer_test -c {sess.dst_ip} -t 12000 -i 5 -r -a 1 -o 24 -d 128"
+        src_thr = threading.Thread(target=run_host_cmd, args=(sess.src, src_cmd, None, lambda: sess.tstop, True, out))
     elif sess.image.startswith("dtnaas/tools"):
         dst_cmd = f"ping -c 2 {sess.src_gw}; iperf -s -i 20"
-        dst_thr = threading.Thread(target=run_host_cmd, args=(sess.dst, dst_cmd, None, lambda: sess.stop, True, out))
+        dst_thr = threading.Thread(target=run_host_cmd, args=(sess.dst, dst_cmd, None, lambda: sess.tstop, True, out))
         src_cmd = f"ping -c 2 {sess.src_gw}; iperf -c {sess.dst_ip} -t 12000 -w 512M -P 8"
-        src_thr = threading.Thread(target=run_host_cmd, args=(sess.src, src_cmd, None, lambda: sess.stop))
+        src_thr = threading.Thread(target=run_host_cmd, args=(sess.src, src_cmd, None, lambda: sess.tstop))
     dst_thr.start()
     time.sleep(1)
     src_thr.start()
     return [dst_thr, src_thr]
 
 def stop_job(sess, hndl):
-    sess.stop = True
+    sess.tstop = True
     for th in hndl:
         th.join()
     log.info("Stopped job")
