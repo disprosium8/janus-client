@@ -38,7 +38,7 @@ class ConfigurationError(Exception):
 
 class JanusCmd(cmd.Cmd):
     def __init__(self, url, user, passwd):
-        self.prompt = col.PROMPT + "janus> " + col.ENDC
+        self.prompt = "janus> "
         self.config = {"active": list(),
                        "nodes": dict()}
         self.cwc = self.config
@@ -113,7 +113,7 @@ class JanusCmd(cmd.Cmd):
 
     def complete_sync(self, text, l, b, e):
         return [ x[b-5:] for x in SYNC_ITEMS if x.startswith(l[5:])]
-    
+
     def emptyline(self):
         pass
 
@@ -124,7 +124,7 @@ class JanusCmd(cmd.Cmd):
                 self._set_cwc()
         except:
             pass
-    
+
     def do_ssh(self, args):
         handle_ssh(args, self.cwc)
 
@@ -159,7 +159,7 @@ class JanusCmd(cmd.Cmd):
 
     def complete_show(self, text, l, b, e):
         return [ x[b-5:] for x in SHOW_ITEMS if x.startswith(l[5:])]
-    
+
     def do_transfer(self, args):
         t = transfer(self.config, self.dtn, args)
         if not t:
@@ -206,7 +206,7 @@ class JanusCmd(cmd.Cmd):
                 if res:
                     self.config['active'].remove(res)
                 self._set_cwc()
-        
+
     def do_cd(self, path):
         '''Change the current level of view of the config to be at <key>
         cd <key>'''
@@ -239,6 +239,10 @@ class JanusCmd(cmd.Cmd):
             return
 
         try:
+            # leaf item case
+            if not isinstance(conf, dict):
+                print (f"{conf}")
+                return
             # print a nice header for the active session list
             if len(self.cwd_list) and self.cwd_list[-1] == "active":
                 cout.header(f"{'ID': <3}: {'Status': <20}| {'Nodes/Services': <45} | {'Image': <40} | Profile")
@@ -271,10 +275,9 @@ class JanusCmd(cmd.Cmd):
                         inst = ','.join(list(map(lambda x,y: f"{x} [{y}]", servcs, cports)))
                         disp = f"{k: <3}: {state: <20}| {inst: <45} | {imgs: <40} | {profs}"
                     else:
+                        scol = col.DIR if len(v) else col.EDIR
                         disp = f"{k}"
                     cout._color(scol, disp)
-                elif not v:
-                    print (f"{k}")
                 else:
                     print (f"{k}: {v}")
         except:
@@ -288,7 +291,7 @@ class JanusCmd(cmd.Cmd):
     def do_lsd(self, key):
         '''Show all config from current level down... or all config under [key]
         lsd [key]'''
-        
+
         conf = self.cwc
         if conf and hasattr(conf, "json"):
             conf = conf.json()
@@ -312,15 +315,18 @@ class JanusCmd(cmd.Cmd):
         '''Exit'''
         self._cleanup()
         return True
-    
+
     def do_EOF(self, line):
         '''Exit'''
-        r = input("\nReally quit? (y/N) ")
-        if r.lower() == "y":
-            self._cleanup()
-            return True
-        else:
-            return False
+        try:
+            r = input("\nReally quit? (y/N) ")
+            if r.lower() == "y":
+                self._cleanup()
+                return True
+        except:
+            print ("\n")
+            pass
+        return False
 
     def _set_cwc(self):
         '''Set the current working configuration to what it should be
@@ -368,7 +374,7 @@ class JanusCmd(cmd.Cmd):
             if isinstance(cfg, Service):
                 self.active = cfg
             cfg = cfg.json()
-        
+
         if isinstance(cfg, list):
             new = {}
             for d in cfg:
@@ -401,10 +407,12 @@ def main(args=None):
 User\t: %s
 Passwd\t: %s\n""" % (url, user, "*****" if pw != "admin" else pw)
     cout.info(info)
-    
+
     jan = JanusCmd(url, user, pw)
     while True:
         try:
+            # perform initial sync to controller at start
+            jan.do_sync("")
             jan.cmdloop()
             break
         except KeyboardInterrupt:

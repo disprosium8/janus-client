@@ -4,11 +4,12 @@ import sys
 class col:
     HEADER = '\033[35m'# PINK
     DIR = '\033[34m' # BLUE
-    ITEM = '\033[37m' # LGRAY
+    EDIR = '\033[36m' # CYAN
+    ITEM = '\033[39m' # DEFAULT BLK
     PROMPT = '\033[32m' # GREEN
     WARNING = '\033[33m' # YELLOW
     FAIL = '\033[31m' # RED
-    ENDC = '\033[39m' # BLACK
+    ENDC = '\033[39m' # DEFAULT BLK
 
 class CText():
     def _color(self, c, e):
