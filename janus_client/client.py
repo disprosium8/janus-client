@@ -47,7 +47,7 @@ class Service(object):
         self._public_key = public_key
         self._kwargs = kwargs
         self._manifest = manifest
-        
+
     def json(self):
         kwargs = self._kwargs
         if self._username:
@@ -79,8 +79,8 @@ class Response(object):
 
     def __str__(self):
         return "{} {}".format(self._data.status_code,
-                              self._data.text)
-        
+                              self._data.json())
+
     def json(self):
         return self._data.json()
 
@@ -171,7 +171,7 @@ class Client(object):
     def delete(self, Id):
         url = "{}{}".format(self.url, '/active/{}'.format(Id))
         return Response(self._call("DELETE", url))
-    
+
     def active(self, Id=None, user=None):
         url = "{}{}".format(self.url, '/active')
         if Id:
@@ -195,7 +195,7 @@ class Client(object):
 
 class Session(object):
     TMPL="id: {}\nallocated: {}\nrequests: {}\nmanifest: {}\nstate: {}"
-    
+
     def __init__(self, client, clone=None, json=None):
         self._id = uuid.uuid4()
         self._client = client
@@ -214,7 +214,7 @@ class Session(object):
             for k,v in json.items():
                 self._manifest.update(json)
                 self._requests.extend(v['request'])
-                    
+
     def __str__(self):
         return self.__class__.TMPL.format(self._id,
                                           self._allocated,

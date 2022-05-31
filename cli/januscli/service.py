@@ -2,17 +2,19 @@ import time
 from janus_client import Session, Service, NodeResponse
 from .util import col
 from .ssh import get_pubkeys
+from .util import CText
 
+cout = CText()
 
 SRV_OPTS = ['create', 'start', 'stop', 'del']
 
 def handle_service(client, args, cfg):
     parts = args.split(" ")
     if not args:
-        print (col.ITEM + f"No argument, session options: {SRV_OPTS}" + col.ENDC)
+        cout.item(f"No argument, session options: {SRV_OPTS}")
         return
     if parts[0] not in SRV_OPTS:
-        print (col.FAIL + f"Unknown service option \"{parts[0]}\"" + col.ENDC)
+        cout.error(f"Unknown service option \"{parts[0]}\"")
         return
 
     if parts[0] == "create":
@@ -20,7 +22,7 @@ def handle_service(client, args, cfg):
             instances = parts[1].split(",")
             image = parts[3]
             profile = parts[5]
-            
+
             sess = client.getSession()
             srv = Service(instances=instances,
                           image=image,
@@ -31,13 +33,13 @@ def handle_service(client, args, cfg):
             ret = sess.initialize()
             cfg['active'].append(ret.json())
             sid = next(iter(ret.json()))
-            print (col.WARNING + f"Initialized new session with id \"{sid}\"" + col.ENDC)
+            cout.warn(f"Initialized new session with id \"{sid}\"")
             return True
         except Exception as e:
-            print (col.FAIL + f"Could not create session: {e}" + col.ENDC)
+            cout.error(f"Could not create session: {e}")
     elif parts[0] == "start":
         if len(parts) < 2:
-            print (col.FAIL + f"No session specified" + col.ENDC)
+            cout.error(f"No session specified")
             return False
 
         try:
@@ -45,19 +47,19 @@ def handle_service(client, args, cfg):
             active = cfg['active']
             res = next((a for a in active if next(iter(a)) == key), None)
             if res:
-                print (col.WARNING + f"Starting session \"{key}\"" + col.ENDC)
+                cout.warn(f"Starting session \"{key}\"")
             else:
-                print (col.FAIL + f"Session not found: \"{key}\"" + col.ENDC)
+                cout.error(f"Session not found: \"{key}\"")
                 return False
-            
+
             ret = client.start(key)
             res.update(ret.json())
             return True
         except Exception as e:
-            print (col.FAIL + f"Could not start session: {e}" + col.ENDC)
+            cout.error(f"Could not start session: {e}")
     elif parts[0] == "stop":
         if len(parts) < 2:
-            print (col.FAIL + f"No session specified" + col.ENDC)
+            cout.error(f"No session specified")
             return False
 
         try:
@@ -65,19 +67,19 @@ def handle_service(client, args, cfg):
             active = cfg['active']
             res = next((a for a in active if next(iter(a)) == key), None)
             if res:
-                print (col.WARNING + f"Stopping session \"{key}\"" + col.ENDC)
+                cout.warn(f"Stopping session \"{key}\"")
             else:
-                print (col.FAIL + f"Session not found: \"{key}\"" + col.ENDC)
+                cout.error(f"Session not found: \"{key}\"")
                 return False
-            
+
             ret = client.stop(key)
             res.update(ret.json())
             return True
         except Exception as e:
-            print (col.FAIL + f"Could not stop session: {e}" + col.ENDC)
+            cout.error(f"Could not stop session: {e}")
     elif parts[0] == "del":
         if len(parts) < 2:
-            print (col.FAIL + f"No session specified" + col.ENDC)
+            cout.error(f"No session specified")
             return False
 
         try:
@@ -85,16 +87,18 @@ def handle_service(client, args, cfg):
             active = cfg['active']
             res = next((a for a in active if next(iter(a)) == key), None)
             if res:
-                print (col.WARNING + f"Deleting session \"{key}\"" + col.ENDC)
+                cout.warn(f"Deleting session \"{key}\"")
             else:
-                print (col.FAIL + f"Session not found: \"{key}\"" + col.ENDC)
+                cout.error(f"Session not found: \"{key}\"")
                 return False
-            
+
             ret = client.delete(key)
+            if ret.error():
+                cout.error(f"Could not clear remote state: {ret}")
+                return False
             active.remove(res)
             return True
         except Exception as e:
-            print (col.FAIL + f"Could not delete session: {e}" + col.ENDC)
+            cout.error(f"Could not delete session: {e}")
 
-        
 
