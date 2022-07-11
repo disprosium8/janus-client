@@ -168,8 +168,11 @@ class Client(object):
         url = "{}{}/{}".format(self.url, '/stop', id)
         return Response(self._call("PUT", url))
 
-    def delete(self, Id):
-        url = "{}{}".format(self.url, '/active/{}'.format(Id))
+    def delete(self, Id, force=False):
+        ep = '/active/{}'.format(Id)
+        if force:
+            ep = "{}{}".format(ep, "?force=true")
+        url = "{}{}".format(self.url, ep)
         return Response(self._call("DELETE", url))
 
     def active(self, Id=None, user=None):

@@ -6,16 +6,22 @@ from .util import CText
 
 cout = CText()
 
-SRV_OPTS = ['create', 'start', 'stop', 'del']
+SRV_ACTIONS = ['create', 'start', 'stop', 'del']
+SRV_OPTIONS = {'-f': False}
 
 def handle_service(client, args, cfg):
     parts = args.split(" ")
     if not args:
         cout.item(f"No argument, session options: {SRV_OPTS}")
         return
-    if parts[0] not in SRV_OPTS:
+    if parts[0] not in SRV_ACTIONS:
         cout.error(f"Unknown service option \"{parts[0]}\"")
         return
+
+    if len(parts) > 2:
+        for p in parts:
+            if p in SRV_OPTIONS.keys():
+                SRV_OPTIONS[p] = True
 
     if parts[0] == "create":
         try:
@@ -92,7 +98,7 @@ def handle_service(client, args, cfg):
                 cout.error(f"Session not found: \"{key}\"")
                 return False
 
-            ret = client.delete(key)
+            ret = client.delete(key, force=SRV_OPTIONS['-f'])
             if ret.error():
                 cout.error(f"Could not clear remote state: {ret}")
                 return False
@@ -100,5 +106,3 @@ def handle_service(client, args, cfg):
             return True
         except Exception as e:
             cout.error(f"Could not delete session: {e}")
-
-
