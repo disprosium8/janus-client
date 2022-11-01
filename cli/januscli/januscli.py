@@ -249,9 +249,7 @@ class JanusCmd(cmd.Cmd):
             for k,v in conf.items():
                 scol = col.ITEM
                 if isinstance(v, dict) or isinstance(v, list):
-                    if "name" in v:
-                        disp = f"{k}:\t({v['name']})"
-                    elif "request" in v:
+                    if "request" in v:
                         servcs = list()
                         cports = list()
                         profiles = set()
@@ -378,8 +376,8 @@ class JanusCmd(cmd.Cmd):
         if isinstance(cfg, list):
             new = {}
             for d in cfg:
-                if "id" in d:
-                    new[str(d['id'])] = d
+                if "name" in d:
+                    new[d['name']] = d
                 elif type(d) is dict:
                     for k, v in d.items():
                         new[str(k)] = v
