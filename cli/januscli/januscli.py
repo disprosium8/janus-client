@@ -77,7 +77,12 @@ class JanusCmd(cmd.Cmd):
                 self.dtn.active(args[0]).json()
             else:
                 ret = self.dtn.active().json()
-                self.config["active"] = ret
+                # convert active sessions list into dict
+                new = list()
+                for a in ret:
+                    if "id" in a:
+                        new.append({str(a['id']): a})
+                self.config["active"] = new
             cout.info("active OK")
         except Exception as e:
             cout.error(f"Error: {e}")

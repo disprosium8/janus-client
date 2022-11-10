@@ -31,10 +31,10 @@ class SessStatusResponse(SessionResponse):
     def __str__(self):
         ret = ""
         for item in self._data:
-            for k,v in item.items():
-                for l,w in v['services'].items():
-                    for s in w:
-                        ret += "id: {}, service: {}, errors: {}\n".format(k, l, s['errors'])
+            k = item['id']
+            for l,w in item['services'].items():
+                for s in w:
+                    ret += "id: {}, service: {}, errors: {}\n".format(k, l, s['errors'])
         return ret
 
 class Service(object):
@@ -64,13 +64,12 @@ class Service(object):
         if not self._manifest:
             return None
         eps = dict()
-        for k,v in self._manifest.items():
-            for l,w in v['services'].items():
-                for s in w:
-                    if s['errors']:
-                        eps.update({"{} (Errors)".format(l): "{}".format(s['errors'])})
-                    else:
-                        eps.update({l: "{}:{}".format(s['ctrl_host'], s['ctrl_port'])})
+        for k,v in self._manifest['services'].items():
+            for s in v:
+                if s['errors']:
+                    eps.update({"{} (Errors)".format(k): "{}".format(s['errors'])})
+                else:
+                    eps.update({k: "{}:{}".format(s['ctrl_host'], s['ctrl_port'])})
         return SessEndpointResponse(eps)
 
 class Response(object):
@@ -109,17 +108,13 @@ class ActiveResponse(Response):
     def __str__(self):
         if self.error():
             return super().__str__()
-        return '\n'.join([ "{}".format(*n) for n in self.json() ])
+        return '\n'.join([ f"{n['id']}" for n in self.json() ])
 
+    @property
     def services(self):
-        ret = dict()
+        ret = list()
         for item in self.json():
-            for k,v in item.items():
-                if k not in ret:
-                    ret[k] = list()
-                svc = v['services']
-                for s in svc:
-                    ret[k].append(Service(manifest=v))
+            ret.append({item['id']: Service(manifest=item)})
         return ret
 
 class Client(object):
@@ -260,7 +255,7 @@ class Session(object):
     def status(self):
         ret = list()
         for k in self._manifest.keys():
-            ret.extend(self._client.active(Id=k).json())
+            ret.append(self._client.active(Id=k).json())
         return SessStatusResponse(ret)
 
     def stop(self):

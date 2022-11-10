@@ -1,15 +1,22 @@
 import time
-from janus_client import Client, Session
+from janus_client import Client, Session, Service
 
-URL="http://localhost:5000"
+URL="https://localhost:5000"
 
 user = 'admin'
+passwd = 'admin'
 mykey = 'ssh-rsa'
 
-client = Client(URL, auth=(user, 'pass'))
+client = Client(URL, auth=(user, passwd))
 
 print (client.nodes())
-print (client.active())
+active = client.active()
+services = client.active().services
+print (active)
+print (services)
+for srv in services:
+    for k,ep in srv.items():
+        print (ep.endpoints())
 
 print()
 
@@ -17,17 +24,18 @@ sess = client.getSession()
 print (sess)
 print()
 
-srv = Service(instances=['odroidc2'],
-              image='dtnaas/gct:latest',
-              profile='arm64',
+srv = Service(instances=['local'],
+              image='dtnaas/tools',
+              profile='default',
               username=user,
               public_key=mykey)
 sess.addService(srv)
 
 sess.start()
 
-print (sess)
+print (sess.status())
 
 time.sleep(2)
 
 sess.stop()
+sess.destroy()
