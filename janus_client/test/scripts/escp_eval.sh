@@ -73,9 +73,9 @@ TAG=$6
 
 SSH_CMD="ssh -o StrictHostKeyChecking=no"
 
-OUTDIR=/data/escp_results/${TAG}
-SDIR=/data/zettar/zettar/zx/src
-DDIR=/data/escp/temp
+OUTDIR=/data/results/${TAG}
+SDIR=/data/datasets
+DDIR=/data/temp
 
 [[ ! -f $OUTDIR ]] && mkdir -p $OUTDIR
 
