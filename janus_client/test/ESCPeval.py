@@ -54,15 +54,20 @@ def setup(sess, user=None, keypath=None):
         # Setup ssh for some tools
         log.info(f"Setting up environment on {idx}")
         
-        cmd = "echo -e 'Host *\n\tStrictHostKeyChecking no' > ~/.ssh/config"
+        cmd = "echo -e 'Host *\n\tStrictHostKeyChecking no' > /config/.ssh/config"
         run_host_cmd(ep, sess.user, cmd, keypath=sess.keypath)
-        cmd = "echo -e '[escp]\ndtn_path = /usr/local/bin/dtn\ndtn_args = -t 12 -b 8M --cpumask FFF --memnode 1' | sudo tee /etc/escp.conf"
+        
+        # tbn6,7
+        # cmd = "echo -e '[escp]\ndtn_path = /usr/local/bin/dtn\ndtn_args = -t 12 -b 8M --cpumask FFF --memnode 1' | sudo tee /etc/escp.conf"
+        
+        # tbn-10, dtnaas-1
+        cmd = "echo -e '[escp]\ndtn_path = /usr/local/bin/dtn\ndtn_args = -t 16 -b 8M' | sudo tee /etc/escp.conf"
         run_host_cmd(ep, sess.user, cmd, keypath=sess.keypath)
         
         parts = ep.split(":")
-        cmd = f"scp -o StrictHostKeyChecking=no -q -i {sess.keypath} -P {parts[1]} {sess.keypath} {sess.user}@{parts[0]}:~/.ssh/id_rsa"
+        cmd = f"scp -o StrictHostKeyChecking=no -q -i {sess.keypath} -P {parts[1]} {sess.keypath} {sess.user}@{parts[0]}:/config/.ssh/id_rsa"
         ret = os.system(cmd)
-        cmd = f"scp -o StrictHostKeyChecking=no -q -i {sess.keypath} -P {parts[1]} scripts/* {sess.user}@{parts[0]}:/data/scripts/"
+        cmd = f"scp -o StrictHostKeyChecking=no -q -i {sess.keypath} -P {parts[1]} -r scripts {sess.user}@{parts[0]}:/config/scripts"
         ret = os.system(cmd)
 
 # simple sequential jobs for ESCP eval
@@ -81,7 +86,7 @@ def run_job(sess, source, **kwargs):
     out.append_stdout(f"Running workflow using src={snode}, dst={dnode}\n")
     out.append_stdout(f"ESCP params: {kwargs}\n")
     
-    cmd = f'/data/scripts/escp_eval.sh {kwargs.get("src")} {snode.split(":")[-1]} {kwargs.get("dst")} {dnode.split(":")[-1]} {kwargs.get("iters")} {kwargs.get("tag")}'
+    cmd = f'sudo bash /config/scripts/escp_eval.sh {kwargs.get("src")} {snode.split(":")[-1]} {kwargs.get("dst")} {dnode.split(":")[-1]} {kwargs.get("iters")} {kwargs.get("tag")}'
     out.append_stdout(f"Executing {cmd}\n")
     run_host_cmd(snode, sess.user, cmd, interactive=True, out=out, keypath=sess.keypath)
     return
