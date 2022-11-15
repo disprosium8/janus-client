@@ -17,7 +17,7 @@ log = logging.getLogger("ESCPeval")
 
 def run_host_cmd(host, user, cmd, interactive=False, out=None, keypath=None):
     log.debug(f"Running \"{cmd}\" on \"{host}\"")
-    init_cmd = ["ssh", "-tt", "-o", "StrictHostKeyChecking=no"]
+    init_cmd = ["ssh", "-q", "-tt", "-o", "StrictHostKeyChecking=no"]
     if keypath:
         init_cmd += ["-i", keypath]
     hstr = host
@@ -67,7 +67,7 @@ def setup(sess, user=None, keypath=None):
         parts = ep.split(":")
         cmd = f"scp -o StrictHostKeyChecking=no -q -i {sess.keypath} -P {parts[1]} {sess.keypath} {sess.user}@{parts[0]}:/config/.ssh/id_rsa"
         ret = os.system(cmd)
-        cmd = f"scp -o StrictHostKeyChecking=no -q -i {sess.keypath} -P {parts[1]} -r scripts {sess.user}@{parts[0]}:/config/scripts"
+        cmd = f"scp -o StrictHostKeyChecking=no -q -i {sess.keypath} -P {parts[1]} scripts/* {sess.user}@{parts[0]}:/config/"
         ret = os.system(cmd)
 
 # simple sequential jobs for ESCP eval
@@ -86,7 +86,7 @@ def run_job(sess, source, **kwargs):
     out.append_stdout(f"Running workflow using src={snode}, dst={dnode}\n")
     out.append_stdout(f"ESCP params: {kwargs}\n")
     
-    cmd = f'sudo bash /config/scripts/escp_eval.sh {kwargs.get("src")} {snode.split(":")[-1]} {kwargs.get("dst")} {dnode.split(":")[-1]} {kwargs.get("iters")} {kwargs.get("tag")}'
+    cmd = f'sudo bash /config/escp_eval.sh {kwargs.get("src")} {snode.split(":")[-1]} {kwargs.get("dst")} {dnode.split(":")[-1]} {kwargs.get("iters")} {kwargs.get("tag")}'
     out.append_stdout(f"Executing {cmd}\n")
     run_host_cmd(snode, sess.user, cmd, interactive=True, out=out, keypath=sess.keypath)
     return

@@ -47,21 +47,21 @@ runset=(
 #    131072x8MiB
 #    65536x16MiB
 #    32768x32MiB
-#    16384x64MiB
+    16384x64MiB
 #    8192x128MiB
 #    4096x256MiB
 #    2048x512MiB
-#    1024x1GiB
+    1024x1GiB
 #    512x2GiB
-#    256x4GiB
+    256x4GiB
 #    128x8GiB
-#    64x16GiB
+    64x16GiB
 #    32x32GiB
-#    16x64GiB
+    16x64GiB
 #    8x128GiB
     4x256GiB
 #    2x512GiB
-#    1x1TiB
+    1x1TiB
 )
 
 SHOST=$1
@@ -73,9 +73,9 @@ TAG=$6
 
 SSH_CMD="ssh -o StrictHostKeyChecking=no"
 
-OUTDIR=/data/escp_results/${TAG}
-SDIR=/data/zettar/zettar/zx/src
-DDIR=/data/escp/temp
+OUTDIR=/data/results/${TAG}
+SDIR=/data/datasets
+DDIR=/data/temp
 
 [[ ! -f $OUTDIR ]] && mkdir -p $OUTDIR
 
@@ -106,7 +106,7 @@ for dset in ${runset[@]}; do
 	run_meas $SHOST $SPORT "src-cpu-${dset}.${i}" &
 	run_meas $DHOST $DPORT "dst-cpu-${dset}.${i}" &
 	start=$SECONDS
-	escp --direct --bits -P ${DPORT} ${SDIR}/${dset} ${DHOST}:${DDIR} &> ${OUTDIR}/${dset}.${i}
+	escp --direct --bits -P ${DPORT} ${SDIR}/${dset} ${DHOST}:${DDIR}
 	end=$SECONDS
 	dur=$((end-start))
 	gbps=$(echo "scale=2; ${datasets[$dset]}*8/${dur}/1000000000" | bc -l)
